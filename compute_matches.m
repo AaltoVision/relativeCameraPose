@@ -2,8 +2,8 @@ clear all
 clc
 
 % type of detector
-orb = 0;
-surf = 1;
+orb = 1;
+surf = 0;
 
 % path to the images of lr3 dataset
 source_data_path = './data/living_room_traj3_loop';
@@ -58,13 +58,12 @@ for k = 1:size(IND_sorted, 1)
         K1 = getcamK(ds_camera_params.Files{curnt_id1});
         [R1, T1] = computeRT(ds_camera_params.Files{curnt_id1});
         
-        i1_grey = rgb2gray(imread(ds.Files{curnt_id1}));
-        %i1_grey = rgb2gray(cv.imread(ds.Files{curnt_id1}));
-        
         if (orb)
+            i1_grey = rgb2gray(cv.imread(ds.Files{curnt_id1}));
             [kp1, des1] = detector.detectAndCompute(i1_grey);
             image_points_1 = reshape([kp1.pt], 2, []).';
         elseif (surf)
+            i1_grey = rgb2gray(imread(ds.Files{curnt_id1}));
             cameraParams1 = cameraParameters('IntrinsicMatrix', K1.');
             image_points_1 = detectSURFFeatures(i1_grey);
             % extract descriptors
@@ -75,10 +74,9 @@ for k = 1:size(IND_sorted, 1)
     end
     K2 = getcamK(ds_camera_params.Files{curnt_id2});
     [R2, T2] = computeRT(ds_camera_params.Files{curnt_id2});
-    i2_grey = rgb2gray(imread(ds.Files{curnt_id2}));
-    %i2_grey = rgb2gray(cv.imread(ds.Files{curnt_id2}));
-    
+   
     if (orb)
+        i2_grey = rgb2gray(cv.imread(ds.Files{curnt_id2}));
         [kp2, des2] = detector.detectAndCompute(i2_grey);
         image_points_2 = reshape([kp2.pt], 2, []).';
         
@@ -109,8 +107,6 @@ for k = 1:size(IND_sorted, 1)
         matched_pnt_img_1 = image_points_1(matched_pnt_ids_img_1, :);
         matched_pnt_img_2 = image_points_2(matched_pnt_ids_img_2, :);
         
-        matched_points_coordinates{curnt_id1, curnt_id2} = [matched_pnt_img_1 ...
-                                                            matched_pnt_img_2];
         % calculate essential matrix                                                
         [E, mask_eM] = cv.findEssentialMat(matched_pnt_img_1, matched_pnt_img_2, ...
                                     'CameraMatrix', K2, 'Method','Ransac');
@@ -129,10 +125,14 @@ for k = 1:size(IND_sorted, 1)
             continue;
         end
         
+        matched_points_coordinates{curnt_id1, curnt_id2} = [inliers_img_1 ...
+                                                            inliers_img_2];
+        
         % calculate relative orientation and translation of two cameras
         [delta_R_est, delta_T_est, good, mask_rP] = cv.recoverPose(E, inliers_img_1, inliers_img_2, 'CameraMatrix', K2);
         
     elseif (surf)
+        i2_grey = rgb2gray(imread(ds.Files{curnt_id2}));
         cameraParams2 = cameraParameters('IntrinsicMatrix', K2.');
         image_points_2 = detectSURFFeatures(i2_grey);
         % extract descriptors
@@ -150,6 +150,9 @@ for k = 1:size(IND_sorted, 1)
             [est_rel_orient, est_rel_location] = relativeCameraPose(E, cameraParams1, cameraParams2, inliers_img_1, inliers_img_2);
             % calculate relative orientation and translation of two cameras
             [delta_R_est, delta_T_est] = cameraPoseToExtrinsics(est_rel_orient, est_rel_location);
+            
+            matched_points_coordinates{curnt_id1, curnt_id2} = [inliers_img_1.Location ...
+                                                                inliers_img_2.Location];
         else
             bad_cases(k, :) = [IND_sorted(k, :), status];
         end
