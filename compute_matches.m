@@ -2,8 +2,8 @@ clear all
 clc
 
 % type of detector
-orb = 1;
-surf = 0;
+orb = 0;
+surf = 1;
 
 % path to the images of lr3 dataset
 source_data_path = './data/living_room_traj3_loop';
@@ -13,7 +13,7 @@ ds_camera_params = tabularTextDatastore(source_data_path, 'FileExtensions', '.tx
 number_of_images = length(ds_camera_params.Files);
 
 % load GT adjancy matrix 
-adj_mtx_depth_gt = fread(fopen('./data/ajd_mtx_depth.bin', 'r'), [number_of_images number_of_images], 'int');
+adj_mtx_depth_gt = fread(fopen('./data/adj_mtx_depth.bin', 'r'), [number_of_images number_of_images], 'int');
 U = triu(adj_mtx_depth_gt - diag(diag(adj_mtx_depth_gt)));
 
 % array of matched points (inliers) in two images
