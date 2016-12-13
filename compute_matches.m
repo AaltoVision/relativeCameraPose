@@ -1,9 +1,14 @@
 clear all
-clc
+%clc
+
+warning('off','all')
 
 % type of detector
-orb = 1;
-surf = 0;
+orb = 0;
+surf = 1;
+
+% number of rounds
+rounds = 1;
 
 % path to the images of lr3 dataset
 source_data_path = './data/living_room_traj3_loop';
@@ -47,138 +52,156 @@ end
 % id of the first camera
 prev_id1 = 0;
 
-% iterate throw the all matched camera pairs
-for k = 1:size(IND_sorted, 1)
-    curnt_id1 = IND_sorted(k, 1);
-    curnt_id2 = IND_sorted(k, 2);
-    
-    % to preserve the computation time we compute detectors if camera_id1
-    % on the current step is not equal camera_id1 on the previous.
-    if (prev_id1 ~= curnt_id1)
-        K1 = getcamK(ds_camera_params.Files{curnt_id1});
-        [R1, T1] = computeRT(ds_camera_params.Files{curnt_id1});
+Orient_mtx_rounds = zeros(number_of_images, number_of_images, rounds);
+Trans_mtx_rounds  = zeros(number_of_images, number_of_images, rounds);
+for n = 1:rounds
+    % iterate throw the all matched camera pairs
+    for k = 1:size(IND_sorted, 1)
+        curnt_id1 = IND_sorted(k, 1);
+        curnt_id2 = IND_sorted(k, 2);
+        
+        % to preserve the computation time we compute detectors if camera_id1
+        % on the current step is not equal camera_id1 on the previous.
+        if (prev_id1 ~= curnt_id1)
+            K1 = getcamK(ds_camera_params.Files{curnt_id1});
+            [R1, T1] = computeRT(ds_camera_params.Files{curnt_id1});
+            
+            if (orb)
+                i1_grey = rgb2gray(cv.imread(ds.Files{curnt_id1}));
+                [kp1, des1] = detector.detectAndCompute(i1_grey);
+                image_points_1 = reshape([kp1.pt], 2, []).';
+            elseif (surf)
+                i1_grey = rgb2gray(imread(ds.Files{curnt_id1}));
+                cameraParams1 = cameraParameters('IntrinsicMatrix', K1.');
+                image_points_1 = detectSURFFeatures(i1_grey);
+                % extract descriptors
+                des1 = extractFeatures(i1_grey, image_points_1);
+            end
+            
+            prev_id1 = curnt_id1;
+        end
+        K2 = getcamK(ds_camera_params.Files{curnt_id2});
+        [R2, T2] = computeRT(ds_camera_params.Files{curnt_id2});
         
         if (orb)
-            i1_grey = rgb2gray(cv.imread(ds.Files{curnt_id1}));
-            [kp1, des1] = detector.detectAndCompute(i1_grey);
-            image_points_1 = reshape([kp1.pt], 2, []).';
-        elseif (surf)
-            i1_grey = rgb2gray(imread(ds.Files{curnt_id1}));
-            cameraParams1 = cameraParameters('IntrinsicMatrix', K1.');
-            image_points_1 = detectSURFFeatures(i1_grey);
-            % extract descriptors
-            des1 = extractFeatures(i1_grey, image_points_1);
-        end
-        
-        prev_id1 = curnt_id1;
-    end
-    K2 = getcamK(ds_camera_params.Files{curnt_id2});
-    [R2, T2] = computeRT(ds_camera_params.Files{curnt_id2});
-   
-    if (orb)
-        i2_grey = rgb2gray(cv.imread(ds.Files{curnt_id2}));
-        [kp2, des2] = detector.detectAndCompute(i2_grey);
-        image_points_2 = reshape([kp2.pt], 2, []).';
-        
-        % checking #1
-        if (isempty(des1) || isempty(des2))
-            err_code = -3;
-            bad_cases(k, :) = [IND_sorted(k, :), err_code];
-            continue;
-        elseif (isempty(kp1) || isempty(kp2))
-            err_code = -4;
-            bad_cases(k, :) = [IND_sorted(k, :), err_code];
-            continue;
-        end
-        
-        matchedPairs = matcher.match(des1, des2);
-        
-        % ids of matched points in image1
-        matched_pnt_ids_img_1 = ([matchedPairs.queryIdx] + 1)';
-        % ids of matched points in image2
-        matched_pnt_ids_img_2 = ([matchedPairs.trainIdx] + 1)';
-        % get sorted matched points' ids in asceding order 
-        % (according to distance between points)
-        [~, dist_ids] = sort([matchedPairs.distance]);
-        % sort matched points for both images
-        matched_pnt_ids_img_1 = matched_pnt_ids_img_1(dist_ids);
-        matched_pnt_ids_img_2 = matched_pnt_ids_img_2(dist_ids);
-        % get sorted match points (coordinates)
-        matched_pnt_img_1 = image_points_1(matched_pnt_ids_img_1, :);
-        matched_pnt_img_2 = image_points_2(matched_pnt_ids_img_2, :);
-        
-        % calculate essential matrix                                                
-        [E, mask_eM] = cv.findEssentialMat(matched_pnt_img_1, matched_pnt_img_2, ...
-                                    'CameraMatrix', K2, 'Method','Ransac');
-                                
-        inliers_img_1 = matched_pnt_img_1(logical(mask_eM), :);
-        inliers_img_2 = matched_pnt_img_2(logical(mask_eM), :);
-        
-        % checking #2
-        if (isempty(inliers_img_1) || isempty(inliers_img_2))
-            err_code = 1;
-            bad_cases(k, :) = [IND_sorted(k, :), err_code];
-            continue;
-        elseif ((size(inliers_img_1, 1) < 5) || (size(inliers_img_2, 1) < 5))
-            err_code = 2;
-            bad_cases(k, :) = [IND_sorted(k, :), err_code];
-            continue;
-        end
-        
-        matched_points_coordinates{curnt_id1, curnt_id2} = [inliers_img_1 ...
-                                                            inliers_img_2];
-        
-        % calculate relative orientation and translation of two cameras
-        [delta_R_est, delta_T_est, good, mask_rP] = cv.recoverPose(E, inliers_img_1, inliers_img_2, 'CameraMatrix', K2);
-        
-    elseif (surf)
-        i2_grey = rgb2gray(imread(ds.Files{curnt_id2}));
-        cameraParams2 = cameraParameters('IntrinsicMatrix', K2.');
-        image_points_2 = detectSURFFeatures(i2_grey);
-        % extract descriptors
-        des2 = extractFeatures(i2_grey, image_points_2);
-        
-        indexPairs = matchFeatures(des1, des2);
-        matchedPoints1 = image_points_1(indexPairs(:,1));
-        matchedPoints2 = image_points_2(indexPairs(:,2));
-        
-        % calculate essential matrix
-        [E, inliers, status] = estimateEssentialMatrix(matchedPoints1, matchedPoints2, cameraParams1, cameraParams2);
-        if (status == 0)
-            inliers_img_1 = matchedPoints1(inliers);
-            inliers_img_2 = matchedPoints2(inliers);
-            [est_rel_orient, est_rel_location] = relativeCameraPose(E, cameraParams1, cameraParams2, inliers_img_1, inliers_img_2);
-            % calculate relative orientation and translation of two cameras
-            [delta_R_est, delta_T_est] = cameraPoseToExtrinsics(est_rel_orient, est_rel_location);
+            i2_grey = rgb2gray(cv.imread(ds.Files{curnt_id2}));
+            [kp2, des2] = detector.detectAndCompute(i2_grey);
+            image_points_2 = reshape([kp2.pt], 2, []).';
             
-            matched_points_coordinates{curnt_id1, curnt_id2} = [inliers_img_1.Location ...
-                                                                inliers_img_2.Location];
-        else
-            bad_cases(k, :) = [IND_sorted(k, :), status];
+            % checking #1
+            if (isempty(des1) || isempty(des2))
+                err_code = -3;
+                bad_cases(k, :) = [IND_sorted(k, :), err_code];
+                continue;
+            elseif (isempty(kp1) || isempty(kp2))
+                err_code = -4;
+                bad_cases(k, :) = [IND_sorted(k, :), err_code];
+                continue;
+            end
+            
+            matchedPairs = matcher.match(des1, des2);
+            
+            % ids of matched points in image1
+            matched_pnt_ids_img_1 = ([matchedPairs.queryIdx] + 1)';
+            % ids of matched points in image2
+            matched_pnt_ids_img_2 = ([matchedPairs.trainIdx] + 1)';
+            % get sorted matched points' ids in asceding order
+            % (according to distance between points)
+            [~, dist_ids] = sort([matchedPairs.distance]);
+            % sort matched points for both images
+            matched_pnt_ids_img_1 = matched_pnt_ids_img_1(dist_ids);
+            matched_pnt_ids_img_2 = matched_pnt_ids_img_2(dist_ids);
+            % get sorted match points (coordinates)
+            matched_pnt_img_1 = image_points_1(matched_pnt_ids_img_1, :);
+            matched_pnt_img_2 = image_points_2(matched_pnt_ids_img_2, :);
+            
+            % calculate essential matrix
+            [E, mask_eM] = cv.findEssentialMat(matched_pnt_img_1, matched_pnt_img_2, ...
+                'CameraMatrix', K2, 'Method','Ransac');
+            
+            inliers_img_1 = matched_pnt_img_1(logical(mask_eM), :);
+            inliers_img_2 = matched_pnt_img_2(logical(mask_eM), :);
+            
+            % checking #2
+            if (isempty(inliers_img_1) || isempty(inliers_img_2))
+                err_code = 1;
+                bad_cases(k, :) = [IND_sorted(k, :), err_code];
+                continue;
+            elseif ((size(inliers_img_1, 1) < 5) || (size(inliers_img_2, 1) < 5))
+                err_code = 2;
+                bad_cases(k, :) = [IND_sorted(k, :), err_code];
+                continue;
+            end
+            
+            matched_points_coordinates{curnt_id1, curnt_id2} = [inliers_img_1 ...
+                inliers_img_2];
+            
+            % calculate relative orientation and translation of two cameras
+            [delta_R_est, delta_T_est, good, mask_rP] = cv.recoverPose(E, inliers_img_1, inliers_img_2, 'CameraMatrix', K2);
+            
+        elseif (surf)
+            i2_grey = rgb2gray(imread(ds.Files{curnt_id2}));
+            cameraParams2 = cameraParameters('IntrinsicMatrix', K2.');
+            image_points_2 = detectSURFFeatures(i2_grey);
+            % extract descriptors
+            des2 = extractFeatures(i2_grey, image_points_2);
+            
+            indexPairs = matchFeatures(des1, des2);
+            matchedPoints1 = image_points_1(indexPairs(:,1));
+            matchedPoints2 = image_points_2(indexPairs(:,2));
+            
+            % calculate essential (fundamental) matrix
+%             if (size(matchedPoints1, 1) < 8 || size(matchedPoints2, 1) < 8)
+%                 %[E, inliers, status] = estimateFundamentalMatrix(matchedPoints1, matchedPoints2, 'Method','RANSAC', 'NumTrials', 2000);
+%                 bad_cases(k, :) = [IND_sorted(k, :), 666];
+%                 continue;
+%             else
+%                 [E, inliers, status] = estimateFundamentalMatrix(matchedPoints1, matchedPoints2, 'Method','Norm8Point');
+%             end
+            [E, inliers, status] = estimateEssentialMatrix(matchedPoints1, matchedPoints2, cameraParams1, cameraParams2);
+            
+            %disp(E);
+            if (status == 0)
+                inliers_img_1 = matchedPoints1(inliers);
+                inliers_img_2 = matchedPoints2(inliers);
+                %[est_rel_orient, est_rel_location] = relativeCameraPose(E, cameraParams1, cameraParams2, inliers_img_1, inliers_img_2);
+                % calculate relative orientation and translation of two cameras
+                %[delta_R_est, delta_T_est] = cameraPoseToExtrinsics(est_rel_orient, est_rel_location);
+                
+                [delta_R_est, delta_T_est, validPointsFraction] = relativeCameraPose(E, cameraParams1, cameraParams2, inliers_img_1, inliers_img_2);
+                matched_points_coordinates{curnt_id1, curnt_id2} = [inliers_img_1.Location ...
+                    inliers_img_2.Location];
+            else
+                bad_cases(k, :) = [IND_sorted(k, :), status];
+            end
         end
-    end
-    
-    % relative orientation GT
-    delta_R_gt = R1 * R2.';
-    % normalize translation GT for both cameras
-    t1_norm = T1 / norm(T1);
-    t2_norm = T2 / norm(T2);
-    
-    % relative translation GT
-    delta_T_gt_so_far = t1_norm - (delta_R_gt * t2_norm / norm(delta_R_gt * t2_norm));
-    % relative translation (L2 normalized)
-    delta_T_gt = delta_T_gt_so_far / norm(delta_T_gt_so_far);
-    
-    % calculate relative orientation error
-    delta_R = delta_R_est.' * delta_R_gt;
-    orient_angular_err = norm(rotationpars(delta_R));
-    trans_angular_err = acos(dot(delta_T_est, delta_T_gt));
         
-    orientation_err(curnt_id1, curnt_id2) = rad2deg(orient_angular_err);
-    orientation_err(curnt_id2, curnt_id1) = rad2deg(orient_angular_err);
-    translation_err(curnt_id1, curnt_id2) = rad2deg(trans_angular_err);
-    translation_err(curnt_id2, curnt_id1) = rad2deg(trans_angular_err);
-    
-
+        % relative orientation GT
+        delta_R_gt = R1 * R2.';
+        % normalize translation GT for both cameras
+        t1_norm = T1 / norm(T1);
+        t2_norm = T2 / norm(T2);
+        
+        % relative translation GT
+        delta_T_gt_so_far = t1_norm - (delta_R_gt * t2_norm / norm(delta_R_gt * t2_norm));
+        % relative translation (L2 normalized)
+        delta_T_gt = delta_T_gt_so_far / norm(delta_T_gt_so_far);
+        
+        % calculate relative orientation error
+        delta_R = delta_R_est.' * delta_R_gt;
+        orient_angular_err = norm(rotationpars(delta_R));
+        trans_angular_err = acos(dot(delta_T_est, delta_T_gt));
+        
+        orientation_err(curnt_id1, curnt_id2) = rad2deg(orient_angular_err);
+        orientation_err(curnt_id2, curnt_id1) = rad2deg(orient_angular_err);
+        translation_err(curnt_id1, curnt_id2) = rad2deg(trans_angular_err);
+        translation_err(curnt_id2, curnt_id1) = rad2deg(trans_angular_err);
+        
+        
+    end
+    Orient_mtx_rounds(:, :, n) = orientation_err;
+    Trans_mtx_rounds(:, :, n) = translation_err;
+    fprintf('%d round(s) out of %d have been done.\n', n, rounds);
 end
-bad_cases( ~any(bad_cases,2), : ) = [];
+
+%bad_cases( ~any(bad_cases,2), : ) = [];
