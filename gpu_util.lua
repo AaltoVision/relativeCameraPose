@@ -1,3 +1,5 @@
+-- This file was borrowed from https://github.com/soumith/imagenet-multiGPU.torch
+-- by Soumith Chintalla (@soumith) without any changes
 require 'cunn'
 require 'cudnn'
 
