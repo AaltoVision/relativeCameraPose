@@ -76,10 +76,14 @@ function evaluation()
     time = sys.clock() - time
     print(c.green '==>' .. " time taken for evaluation = " .. (time) .. " s")
 
-    local save_path = '/hdd/projects/image_retrieval/camera_pose_estimation/scripts/MVS_dataset/results'
-    local results_file = torch.DiskFile(save_path .. '/' .. 'orientation_cnnBspp_fullsized_dtu_on_fullsized_ep_' ..  epoch .. '.bin', 'w'):binary()
+    if (opt.results_dir == nil) or (opt.results_dir == '') then
+        print(c.green '==>' .. " results_dir was not set. Using current folder")
+        opt.results_dir = '.'
+    if not paths.dirp(opt.results_dir) then
+        paths.mkdir(opt.results_dir)
+    
+    local results_file = torch.DiskFile(paths.concat(opt.results_dir, 'results_rel_pose_ep_' .. epoch .. '.bin'), 'w'):binary()
     local results = torch.cat(quaternion_estimations, translation_estimations, 2)
     results_file:writeFloat(results:storage())
     results_file:close()
-
 end

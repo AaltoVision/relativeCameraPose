@@ -59,16 +59,16 @@ if opt.do_evaluation then
     evaluation()
 else
     for i = opt.epochNumber,opt.max_epoch do
-        if epoch == 5 then
-            optimState.learningRate = 0.0001
-        end
         
         train()
         test()
         collectgarbage()
         model:clearState()
+        
         -- Saving the model
-        saveDataParallel(paths.concat(opt.snapshot_dir, 'siam_ZAG_from_hybridnet_fullsized_SPP_' .. (epoch) .. '.t7'), model)
+        if not paths.dirp(opt.snapshot_dir) then
+            paths.mkdir(opt.snapshot_dir)
+        saveDataParallel(paths.concat(opt.snapshot_dir, 'siam_hybridnet_fullsized_SPP_' .. (epoch) .. '.t7'), model)
 
         epoch = epoch + 1
 
