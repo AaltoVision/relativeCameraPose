@@ -34,12 +34,14 @@ function load_training_data()
     if file then
         local id = 1
         for line in file:lines() do
-            local line_info = string.split(line, " ")
-            train_img_id_obj_gt_[id] = torch.IntTensor({line_info[1], line_info[2], line_info[3]})
-            train_quaternions_gt_[id] = torch.Tensor({line_info[4], line_info[5], line_info[6], line_info[7]})
-            train_translation_gt_[id] = torch.Tensor({line_info[8], line_info[9], line_info[10]})
+            if not (line:sub(1,1) == '-') then
+                local line_info = string.split(line, " ")
+                train_img_id_obj_gt_[id] = torch.IntTensor({line_info[1], line_info[2], line_info[3]})
+                train_quaternions_gt_[id] = torch.Tensor({line_info[4], line_info[5], line_info[6], line_info[7]})
+                train_translation_gt_[id] = torch.Tensor({line_info[8], line_info[9], line_info[10]})
 
-            id = id + 1
+                id = id + 1
+            end
         end
     end
 end
@@ -54,12 +56,14 @@ function load_test_data()
     if file then
         local id = 1
         for line in file:lines() do
-            local line_info = string.split(line, " ")
-            test_img_id_obj_gt_[id] = torch.IntTensor({line_info[1], line_info[2], line_info[3]})
-            test_quaternions_gt_[id] = torch.Tensor({line_info[4], line_info[5], line_info[6], line_info[7]})
-            test_translation_gt_[id] = torch.Tensor({line_info[8], line_info[9], line_info[10]})
+            if not (line:sub(1,1) == '-') then
+                local line_info = string.split(line, " ")
+                test_img_id_obj_gt_[id] = torch.IntTensor({line_info[1], line_info[2], line_info[3]})
+                test_quaternions_gt_[id] = torch.Tensor({line_info[4], line_info[5], line_info[6], line_info[7]})
+                test_translation_gt_[id] = torch.Tensor({line_info[8], line_info[9], line_info[10]})
 
-            id = id + 1
+                id = id + 1
+            end
         end
     end
 end

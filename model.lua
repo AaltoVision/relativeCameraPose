@@ -52,7 +52,6 @@ function create_hybrid_model()
     else
         translation_est_branch:add(nn.Linear(2*13*13*256, 3))
     end
-    translation_est_branch:add(nn.BatchNormalization(3))
 
     local orientation_est_branch = nn.Sequential()
     if (opt.spp) then
@@ -60,7 +59,6 @@ function create_hybrid_model()
     else
         orientation_est_branch:add(nn.Linear(2*13*13*256, 4))
     end
-    orientation_est_branch:add(nn.BatchNormalization(4))
 
     estimation_part:add(translation_est_branch) --translation vector
     estimation_part:add(orientation_est_branch) --orientation vector
