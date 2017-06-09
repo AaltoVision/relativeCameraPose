@@ -7,12 +7,10 @@ require 'inn'
 local optnet = require 'optnet'
 local c = require 'trepl.colorize'
 
-local home_path = '/hdd/projects/image_retrieval/camera_pose_estimation/dl_models/torch'
-
 
 function create_hybrid_model()
-    local model_prototxt = paths.concat(home_path, 'siam_alexnet_t', 'hybridCNN_deploy_upgraded.prototxt') 
-    local model_weights = paths.concat(home_path, 'siam_alexnet_t', 'hybridCNN_iter_700000_upgraded.caffemodel')
+    local model_prototxt = paths.concat('./pre-trained', 'hybridCNN_deploy_upgraded.prototxt') 
+    local model_weights  = paths.concat('./pre-trained', 'hybridCNN_iter_700000_upgraded.caffemodel')
     local model_hybrid = loadcaffe.load(model_prototxt, model_weights, 'cudnn')
 
     --remove last 11 layers after the 14nd
@@ -78,7 +76,7 @@ else
     model:cuda()
     local sample_input = torch.randn(2, 2, 3, opt.crop_size, opt.crop_size):cuda()
     if (opt.spp) then
-        sample_input = torch.randn(2, 2, 3, opt.crop_size_x, opt.crop_size_y):cuda()
+        sample_input = torch.randn(2, 2, 3, opt.image_size_x, opt.image_size_y):cuda()
     end
     opts_t = {inplace=true, mode='training'}
     optnet = require 'optnet'

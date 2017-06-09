@@ -22,7 +22,7 @@ function make_training_minibatch(rnd_idx_vec)
         return out1, out2
     end
 
-
+    --[[
     function random_transform_pair(x)
         local a = torch.random(6)
         for k=1,2 do
@@ -37,9 +37,17 @@ function make_training_minibatch(rnd_idx_vec)
         end
     return x
     end
+    --]]
     
     local batch_size = rnd_idx_vec:size(1)
-    local train_data = torch.Tensor(batch_size, 2, 3, opt.crop_size_x, opt.crop_size_y):zero()
+    local image_width  = opt.image_size_x
+    local image_height = opt.image_size_y
+    if (opt.do_cropping) then
+        image_width  = opt.crop_size
+        image_height = opt.crop_size
+    end
+
+    local train_data = torch.Tensor(batch_size, 2, 3, image_width, image_height):zero()
 
     -- iterate over random indices (rnd_ids)
     local image_pair_id = 1
@@ -48,9 +56,15 @@ function make_training_minibatch(rnd_idx_vec)
 
         local im1_tmp = image.load(opt.source_img_path .. '/' .. 'scan' .. train_img_id_obj_gt_[id][3] .. '/' .. string.format("clean_%03d_max.png", train_img_id_obj_gt_[id][1]), 3, 'float')
         local im2_tmp = image.load(opt.source_img_path .. '/' .. 'scan' .. train_img_id_obj_gt_[id][3] .. '/' .. string.format("clean_%03d_max.png", train_img_id_obj_gt_[id][2]), 3, 'float')
-            
-        train_data[{image_pair_id, 1, {}, {}, {}}] = im1_tmp
-        train_data[{image_pair_id, 2, {}, {}, {}}] = im2_tmp
+
+        local im1 = im1_tmp
+        local im2 = im2_tmp
+        if (opt.do_cropping) then
+            im1, im2 = random_crop(im1_tmp, im2_tmp)
+        end
+
+        train_data[{image_pair_id, 1, {}, {}, {}}] = im1
+        train_data[{image_pair_id, 2, {}, {}, {}}] = im2
 
         image_pair_id = image_pair_id + 1
 
@@ -87,7 +101,15 @@ function make_test_minibatch(rnd_idx_vec)
     end
     
     local batch_size = rnd_idx_vec:size(1)
-    local test_data = torch.Tensor(batch_size, 2, 3, opt.crop_size_x, opt.crop_size_y):zero()
+
+    local image_width  = opt.image_size_x
+    local image_height = opt.image_size_y
+    if (opt.do_cropping) then
+        image_width  = opt.crop_size
+        image_height = opt.crop_size
+    end
+
+    local test_data = torch.Tensor(batch_size, 2, 3, image_width, image_height):zero()
 
     -- iterate over indices (rnd_ids)
     local image_pair_id = 1
@@ -97,9 +119,16 @@ function make_test_minibatch(rnd_idx_vec)
         local im1_tmp = image.load(opt.source_img_path .. '/' .. 'scan' .. test_img_id_obj_gt_[id][3] .. '/' .. string.format("clean_%03d_max.png", test_img_id_obj_gt_[id][1]), 3, 'float')
         local im2_tmp = image.load(opt.source_img_path .. '/' .. 'scan' .. test_img_id_obj_gt_[id][3] .. '/' .. string.format("clean_%03d_max.png", test_img_id_obj_gt_[id][2]), 3, 'float')
 
-        test_data[{image_pair_id, 1, {}, {}, {}}] = im1_tmp
-        test_data[{image_pair_id, 2, {}, {}, {}}] = im2_tmp
+        local im1 = im1_tmp
+        local im2 = im2_tmp
+        if (opt.do_cropping) then
+            im1 = center_patch(im1_tmp)
+            im2 = center_patch(im2_tmp)
+        end
 
+        test_data[{image_pair_id, 1, {}, {}, {}}] = im1
+        test_data[{image_pair_id, 2, {}, {}, {}}] = im2
+        
         image_pair_id = image_pair_id + 1
     end
 

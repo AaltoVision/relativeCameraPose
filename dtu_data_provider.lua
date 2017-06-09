@@ -6,10 +6,6 @@ local c = require 'trepl.colorize'
 
 
 function init_data_provider()
-    --[[
-    number_of_training_pairs = 39424
-    number_of_test_pairs = 35391 --not MOKA
-    --]]
 
     -- loading precalculated mean and std of training dataset
     mean_ = {0.554, 0.486, 0.439}

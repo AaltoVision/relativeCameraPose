@@ -22,6 +22,7 @@ paths.dofile('gpu_util.lua')
 -- Initializing data provider
 paths.dofile('dtu_data_provider.lua')
 init_data_provider()
+do return end
 paths.dofile('dtu_construct_minibatch.lua')
 
 -- Loading CNN model
@@ -64,10 +65,11 @@ else
         test()
         collectgarbage()
         model:clearState()
-        
+
         -- Saving the model
         if not paths.dirp(opt.snapshot_dir) then
             paths.mkdir(opt.snapshot_dir)
+        end
         saveDataParallel(paths.concat(opt.snapshot_dir, 'siam_hybridnet_fullsized_SPP_' .. (epoch) .. '.t7'), model)
 
         epoch = epoch + 1
