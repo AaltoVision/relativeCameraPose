@@ -46,6 +46,8 @@ end
 
 function evaluation()
 
+    local translation_estimations = torch.Tensor(opt.test_dataset_size, 3)
+    local quaternion_estimations  = torch.Tensor(opt.test_dataset_size, 4)
     local time = sys.clock()
     print(c.green '==>' .. " start evaluation after " .. (epoch) .. " epoch(s)")
 
@@ -79,9 +81,12 @@ function evaluation()
     if (opt.results_dir == nil) or (opt.results_dir == '') then
         print(c.green '==>' .. " results_dir was not set. Using current folder")
         opt.results_dir = '.'
+    end
+
     if not paths.dirp(opt.results_dir) then
         paths.mkdir(opt.results_dir)
-    
+    end
+
     local results_file = torch.DiskFile(paths.concat(opt.results_dir, 'results_rel_pose_ep_' .. epoch .. '.bin'), 'w'):binary()
     local results = torch.cat(quaternion_estimations, translation_estimations, 2)
     results_file:writeFloat(results:storage())

@@ -1,7 +1,6 @@
 require 'loadcaffe'
 require 'paths'
 require 'nn'
-require 'L2Normalize'
 require 'inn'
 
 local optnet = require 'optnet'

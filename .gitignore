@@ -1,2 +1,5 @@
 *.png
 *.m~
+*.bin
+*.caffemodel
+*.prototxt

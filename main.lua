@@ -15,21 +15,20 @@ opt = opts.parse(arg)
 print(opt)
 
 torch.manualSeed(opt.manualSeed)
-epoch = opt.epochNumber
+epoch = opt.epoch_number
 
 -- Getting the multi-gpu functions
 paths.dofile('gpu_util.lua')
 -- Initializing data provider
 paths.dofile('dtu_data_provider.lua')
 init_data_provider()
-do return end
+
 paths.dofile('dtu_construct_minibatch.lua')
 
 -- Loading CNN model
 paths.dofile('model.lua')
 cudnn.convert(model, cudnn)
 collectgarbage()
-print(model)
 
 -- Create Criterion
 local mse_1 = nn.MSECriterion() -- orientation loss
