@@ -3,6 +3,13 @@ Torch code and models for _Relative Camera Pose Estimation Using Convolutional N
 
 https://arxiv.org/abs/1702.01381
 
+# Running the code
+* First, you need to download original DTU dataset (136Gb) http://roboimagedata.compute.dtu.dk/. It can be done by using the following command:
+```wget http://roboimagedata.compute.dtu.dk/imagedata2/www/Cleaned.zip```
+* Inside ```pre-trained``` folder run ```download_models.sh``` script downloading pre-trained HybridCNN (http://places.csail.mit.edu/) model. It is needed only for training the proposed model
+* And finally
+```th main.lua -do_evaluation -source_image_path <path/to/DTU/Cleaned> -weights ./pre-trained/siam_hybridnet_fullsized.t7```
+
 # Bibtex
 ```
 @inproceedings{Melekhov2017relativePoseCnn,
