@@ -6,7 +6,7 @@ https://arxiv.org/abs/1702.01381
 # Running the code
 * First, you need to download original DTU dataset (136Gb) http://roboimagedata.compute.dtu.dk/. It can be done by using the following command:
 ```
-wget http://roboimagedata.compute.dtu.dk/imagedata2/www/Cleaned.zip
+wget http://roboimagedata2.compute.dtu.dk/data/MVS/Cleaned.zip
 ```
 * Inside `pre-trained/` folder run `download_models.sh` script downloading pre-trained HybridCNN (http://places.csail.mit.edu/) model. It is needed only for training the proposed model
 * And finally
