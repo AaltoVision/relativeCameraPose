@@ -1,3 +1,6 @@
+## New!!!
+We have released a PyTorch implementation of the method for relative camera pose estimation. The code and pre-trained models are available at https://github.com/AaltoVision/RelPoseNet
+
 # Relative camera pose estimation using CNNs
 Torch code and models for _Relative Camera Pose Estimation Using Convolutional Neural Networks_
 
